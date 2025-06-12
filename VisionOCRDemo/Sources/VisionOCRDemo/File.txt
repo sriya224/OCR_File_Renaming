@@ -1,0 +1,85 @@
+import Foundation
+import Vision
+import ImageIO
+
+let args = CommandLine.arguments
+guard args.count > 1 else {
+    print("Usage: swift ocr_folder.swift /path/to/folder")
+    exit(1)
+}
+
+let folderPath = args[1]
+let folderURL = URL(fileURLWithPath: folderPath, isDirectory: true)
+
+// Prepare output file
+let outputFileURL = folderURL.appendingPathComponent("vision_ocr_results.txt")
+let fileManager = FileManager.default
+if fileManager.fileExists(atPath: outputFileURL.path) {
+    try? fileManager.removeItem(at: outputFileURL) // Overwrite if already exists
+}
+
+guard let contents = try? fileManager.contentsOfDirectory(at: folderURL, includingPropertiesForKeys: nil, options: []) else {
+    print("❌ Failed to read folder contents at: \(folderPath)")
+    exit(1)
+}
+
+let pngFiles = contents.filter { $0.pathExtension.lowercased() == "png" }
+
+guard !pngFiles.isEmpty else {
+    print("📂 No PNG files found in the folder.")
+    exit(0)
+}
+
+let semaphore = DispatchSemaphore(value: 0)
+
+for imageURL in pngFiles {
+    guard let imageSource = CGImageSourceCreateWithURL(imageURL as CFURL, nil),
+          let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
+        print("❌ Failed to load CGImage from: \(imageURL.lastPathComponent)")
+        continue
+    }
+
+    let request = VNRecognizeTextRequest { request, error in
+        var output = "--- \(imageURL.lastPathComponent) ---\n"
+        defer { semaphore.signal() }
+
+        if let error = error {
+            output += "OCR Error: \(error)\n\n"
+        } else if let observations = request.results as? [VNRecognizedTextObservation] {
+            let lines = observations.compactMap { $0.topCandidates(1).first?.string }
+            if lines.isEmpty {
+                output += "No text found\n\n"
+            } else {
+                output += lines.joined(separator: "\n") + "\n\n"
+            }
+        }
+
+        do {
+            let handle = try FileHandle(forWritingTo: outputFileURL)
+            handle.seekToEndOfFile()
+            if let data = output.data(using: .utf8) {
+                handle.write(data)
+            }
+            handle.closeFile()
+            print("✅ Appended OCR result for \(imageURL.lastPathComponent)")
+        } catch {
+            do {
+                try output.write(to: outputFileURL, atomically: true, encoding: .utf8)
+                print("✅ Created and wrote OCR result for \(imageURL.lastPathComponent)")
+            } catch {
+                print("❌ Failed to write output: \(error)")
+            }
+        }
+    }
+
+    let requestHandler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    DispatchQueue.global().async {
+        do {
+            try requestHandler.perform([request])
+        } catch {
+            print("❌ Failed to perform OCR on \(imageURL.lastPathComponent): \(error)")
+            semaphore.signal()
+        }
+    }
+    semaphore.wait()
+}
