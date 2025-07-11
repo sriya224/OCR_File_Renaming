@@ -3,7 +3,11 @@ import re
 import json
 import argparse
 import sys
-from collections import defaultdict
+import pandas as pd
+from collections import defaultdict, Counter
+from openpyxl import Workbook
+from openpyxl.drawing.image import Image as XLImage
+from PIL import Image as PILImage
 
 def log(message):
     print(message)
@@ -58,7 +62,7 @@ def extract_study_id_and_clean(lines):
     filename = "_".join(filename_tokens)
     return study_id, filename
 
-def rename_mrxs_files(ocr_txt_path, mrxs_folder):
+def rename_mrxs_files(ocr_txt_path, mrxs_folder, label_folder):
     global LOG_PATH
     LOG_PATH = os.path.join(mrxs_folder, "rename_log.txt")
     log(f"Logging to: {LOG_PATH}")
@@ -69,11 +73,25 @@ def rename_mrxs_files(ocr_txt_path, mrxs_folder):
 
     # Generate cleaned filenames
     rename_map = {}
+
+    study_id_to_files = defaultdict(list)
+    records = []  # For Excel output
+    
     for fname, lines in grouped.items():
         study_id, cleaned_name = extract_study_id_and_clean(lines)
         rename_map[fname] = cleaned_name
+        if study_id:
+            study_id_to_files[study_id].append(fname)
 
-    # Rename matching .mrxs files and associated folders
+        label_img = f"{fname}_label.png" 
+        records.append({
+            "Original File Name": fname + ".mrxs",
+            "Label Image": label_img,
+            "New File Name": cleaned_name + ".mrxs"
+        })
+    
+    export_excel_with_images(records, label_folder)
+    
     renamed = []
     for old_name, new_name in rename_map.items():
         old_folder = os.path.join(mrxs_folder, old_name)
@@ -102,17 +120,61 @@ def rename_mrxs_files(ocr_txt_path, mrxs_folder):
     log(f"\nRenamed {len(renamed)} file(s).")
     for old, new in renamed:
         log(f" - {old}.mrxs → {new}.mrxs")
+    
+    # Outlier detection
+    log("\n🔍 Checking for outlier Study IDs...")
+    outliers = {sid: files for sid, files in study_id_to_files.items() if sid and len(files) == 1}
+    if outliers:
+        log(f"\n⚠️ Found {len(outliers)} potential outlier Study ID(s):")
+        for sid in sorted(outliers):
+            log(f" - Study ID '{sid}' only found in file: {outliers[sid][0]}")
+    else:
+        log("✅ No study ID outliers detected.")
 
-    # Optional save mapping
-    mapping_path = os.path.join(mrxs_folder, "renamed_files.json")
-    with open(mapping_path, "w", encoding="utf-8") as f:
-        json.dump(rename_map, f, indent=2)
-    log(f"Saved mapping to {mapping_path}")
+# Export results into excel file (label image, original filename, new filename)
+def export_excel_with_images(records, label_folder, output_path="filename_mapping_with_images.xlsx"):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Renamed Files"
+
+    # Write header
+    ws.append(["Label Image", "Original File Name", "New File Name"])
+
+    for i, record in enumerate(records, start=2):  # Excel rows start at 1; row 1 is header
+        label_img_path = os.path.join(label_folder, record["Label Image"])
+        if os.path.exists(label_img_path):
+            # Resize image to thumbnail
+            thumb_path = f"{label_img_path}_thumb.png"
+            with PILImage.open(label_img_path) as img:
+                img.thumbnail((200, 200))
+                img.save(thumb_path)
+
+            img_for_excel = XLImage(thumb_path)
+            img_for_excel.anchor = f"A{i}"
+            ws.add_image(img_for_excel)
+
+        # Write file names
+        ws.cell(row=i, column=2, value=record["Original File Name"])
+        ws.cell(row=i, column=3, value=record["New File Name"])
+
+        # Resize row height
+        ws.row_dimensions[i].height = 120
+
+    # Resize column width
+    ws.column_dimensions["A"].width = 50
+    ws.column_dimensions["B"].width = 30
+    ws.column_dimensions["C"].width = 30
+    
+    wb.save(output_path)
+    os.remove(thumb_path)
+    log(f"\n Saved Excel mapping with images to {output_path}")
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Rename .mrxs files using OCR results.")
+    parser = argparse.ArgumentParser(description="Rename .mrxs files using OCR results and export Excel mapping.")
     parser.add_argument("--ocr", required=True, help="Path to vision_ocr_results.txt")
     parser.add_argument("--folder", required=True, help="Path to folder containing .mrxs files")
+    parser.add_argument("--labels", required=True, help="Path to folder containing label .png images")
     args = parser.parse_args()
 
-    rename_mrxs_files(args.ocr, args.folder)
+    rename_mrxs_files(args.ocr, args.folder, args.labels)
