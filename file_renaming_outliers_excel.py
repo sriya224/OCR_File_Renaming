@@ -2,8 +2,18 @@ import os
 import re
 import json
 import argparse
+import sys
 import pandas as pd
 from collections import defaultdict, Counter
+from openpyxl import Workbook
+from openpyxl.drawing.image import Image as XLImage
+from PIL import Image as PILImage
+from datetime import datetime
+
+def log(message):
+    print(message)
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(message + "\n")
 
 def parse_ocr_file(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
@@ -16,7 +26,8 @@ def parse_ocr_file(filepath):
     for line in lines:
         match = header_pattern.match(line.strip())
         if match:
-            current_file = match.group(1).replace("_label.png", "")
+            current_file = match.group(1).replace(".png", "")
+            grouped[current_file] = []
         elif current_file and line.strip():
             grouped[current_file].append(line.strip())
 
@@ -47,69 +58,83 @@ def extract_study_id_and_clean(lines):
             filename_tokens.append(cleaned)
 
             if study_id_pattern.match(cleaned):
-                break
+                break  # stop further tokens from this line
 
     filename = "_".join(filename_tokens)
     return study_id, filename
 
-def rename_mrxs_files(ocr_txt_path, mrxs_folder, label_folder):
+def rename_mrxs_files(ocr_txt_path, mrxs_folder, output_folder, label_folder):
+    global LOG_PATH
+    LOG_PATH = os.path.join(output_folder, f"rename_log.txt")
+    log(f"Logging to: {LOG_PATH}")
+    log(f"OCR input: {ocr_txt_path}")
+    log(f"MRXS folder: {mrxs_folder}")
+    log(f"Output folder: {output_folder}")
+
     grouped = parse_ocr_file(ocr_txt_path)
 
+    # Generate cleaned filenames
     rename_map = {}
+
     study_id_to_files = defaultdict(list)
     records = []  # For Excel output
-
+    
     for fname, lines in grouped.items():
         study_id, cleaned_name = extract_study_id_and_clean(lines)
         rename_map[fname] = cleaned_name
         if study_id:
             study_id_to_files[study_id].append(fname)
 
-        label_img = f"{fname}_label.png"
+        label_img = f"{fname}.png" 
         records.append({
             "Original File Name": fname + ".mrxs",
             "Label Image": label_img,
             "New File Name": cleaned_name + ".mrxs"
         })
-    export_excel_with_images(records, label_folder)
-
-
+    
+    export_excel_with_images(records, label_folder, output_folder)
+    
     renamed = []
     for old_name, new_name in rename_map.items():
-        old_path = os.path.join(mrxs_folder, old_name + "_label.png")
-        new_path = os.path.join(mrxs_folder, new_name + "_label_1.png")
+        old_folder = os.path.join(mrxs_folder, old_name)
+        new_folder = os.path.join(mrxs_folder, new_name)
+        old_path = old_folder + ".mrxs"
+        new_path = new_folder + ".mrxs"
+
         if os.path.exists(old_path):
-            if not os.path.exists(new_path):
+            if not os.path.exists(new_path):  # avoid overwrite
                 os.rename(old_path, new_path)
                 renamed.append((old_name, new_name))
+                log(f"Renamed file: {old_name}.mrxs → {new_name}.mrxs")
+
+                # Rename associated metadata folder
+                if os.path.isdir(old_folder):
+                    if not os.path.exists(new_folder):
+                        os.rename(old_folder, new_folder)
+                        log(f"Renamed folder: {old_name}/ → {new_name}/")
+                    else:
+                        log(f"Skipped folder rename: {new_name}/ already exists.")
             else:
-                print(f"Skipped: {new_name}.mrxs already exists.")
+                log(f"Skipped: {new_name}.mrxs already exists.")
         else:
-            print(f"File not found: {old_path}")
+            log(f"File not found: {old_path}")
 
-    print(f"\nRenamed {len(renamed)} file(s).")
+    log(f"\nRenamed {len(renamed)} file(s).")
     for old, new in renamed:
-        print(f" - {old}.mrxs → {new}.mrxs")
-
-    with open("renamed_files.json", "w", encoding="utf-8") as f:
-        json.dump(rename_map, f, indent=2)
-    print("Saved mapping to renamed_files.json")
-
+        log(f" - {old}.mrxs → {new}.mrxs")
+    
     # Outlier detection
-    print("\n🔍 Checking for outlier study IDs...")
-    outliers = {sid: files for sid, files in study_id_to_files.items() if len(files) == 1}
+    log("\n🔍 Checking for outlier Study IDs...")
+    outliers = {sid: files for sid, files in study_id_to_files.items() if sid and len(files) == 1}
     if outliers:
-        print(f"\n⚠️ Found {len(outliers)} potential outlier study ID(s):")
-        for sid, files in outliers.items():
-            print(f" - Study ID '{sid}' only found in file: {files[0]}")
+        log(f"\n⚠️ Found {len(outliers)} potential outlier Study ID(s):")
+        for sid in sorted(outliers):
+            log(f" - Study ID '{sid}' only found in file: {outliers[sid][0]}")
     else:
-        print("✅ No study ID outliers detected.")
+        log("✅ No study ID outliers detected.")
 
-from openpyxl import Workbook
-from openpyxl.drawing.image import Image as XLImage
-from PIL import Image as PILImage
-
-def export_excel_with_images(records, label_folder, output_path="filename_mapping_with_images.xlsx"):
+# Export results into excel file (label image, original filename, new filename)
+def export_excel_with_images(records, label_folder, output_folder, output_path="expanded_ocr_results.xlsx"):
     wb = Workbook()
     ws = wb.active
     ws.title = "Renamed Files"
@@ -134,22 +159,28 @@ def export_excel_with_images(records, label_folder, output_path="filename_mappin
         ws.cell(row=i, column=2, value=record["Original File Name"])
         ws.cell(row=i, column=3, value=record["New File Name"])
 
-        # Resize row hieght
+        # Resize row height
         ws.row_dimensions[i].height = 120
 
     # Resize column width
     ws.column_dimensions["A"].width = 50
     ws.column_dimensions["B"].width = 30
     ws.column_dimensions["C"].width = 30
+    
+    path = f"{output_folder}/{output_path}"
+    wb.save(path)
+    # Figure out how to remove duplicate thumbnail images
+    # os.remove(thumb_path)
+    log(f"\n Saved Excel mapping with images to {output_path}")
 
-    wb.save(output_path)
-    print(f"\n📄 Saved Excel mapping with images to {output_path}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Rename .mrxs files using OCR results and export Excel mapping.")
     parser.add_argument("--ocr", required=True, help="Path to vision_ocr_results.txt")
     parser.add_argument("--folder", required=True, help="Path to folder containing .mrxs files")
     parser.add_argument("--labels", required=True, help="Path to folder containing label .png images")
+    parser.add_argument("-o", required=True, help="Path to store output files")
+
     args = parser.parse_args()
 
-    rename_mrxs_files(args.ocr, args.folder, args.labels)
+    rename_mrxs_files(args.ocr, args.folder, args.o, args.labels)
