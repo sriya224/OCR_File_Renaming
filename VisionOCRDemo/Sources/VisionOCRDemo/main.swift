@@ -3,22 +3,41 @@ import Vision
 import ImageIO
 
 let args = CommandLine.arguments
-guard args.count > 1 else {
-    print("Usage: swift ocr_folder.swift /path/to/folder")
+guard args.count > 2 else {
+    print("Usage: swift ocr_folder.swift /path/to/input_folder /path/to/output_folder")
     exit(1)
 }
 
-let folderPath = args[1]
-let folderURL = URL(fileURLWithPath: folderPath, isDirectory: true)
+let inputFolderPath = args[1]
+let outputFolderPath = args[2]
 
-let outputFileURL = folderURL.appendingPathComponent("vision_ocr_results.txt")
+let inputFolderURL = URL(fileURLWithPath: inputFolderPath, isDirectory: true)
+let outputFolderURL = URL(fileURLWithPath: outputFolderPath, isDirectory: true)
+// let dateFormatter = DateFormatter()
+// dateFormatter.dateFormat = "yyyy-M-d_HH-mm"
+// let date = dateFormatter.string(from: Date())
+let outputFileURL = outputFolderURL.appendingPathComponent("ocr_results.txt")
+
 let fileManager = FileManager.default
+
+// Ensure output directory exists
+if !fileManager.fileExists(atPath: outputFolderURL.path) {
+    do {
+        try fileManager.createDirectory(at: outputFolderURL, withIntermediateDirectories: true, attributes: nil)
+    } catch {
+        print("❌ Failed to create output directory at: \(outputFolderURL.path)")
+        exit(1)
+    }
+}
+
+// Remove old output file if it exists
 if fileManager.fileExists(atPath: outputFileURL.path) {
     try? fileManager.removeItem(at: outputFileURL)
 }
 
-guard let contents = try? fileManager.contentsOfDirectory(at: folderURL, includingPropertiesForKeys: nil, options: []) else {
-    print("❌ Failed to read folder contents at: \(folderPath)")
+// Get .png files in input folder
+guard let contents = try? fileManager.contentsOfDirectory(at: inputFolderURL, includingPropertiesForKeys: nil, options: []) else {
+    print("❌ Failed to read folder contents at: \(inputFolderPath)")
     exit(1)
 }
 
@@ -29,6 +48,7 @@ guard !pngFiles.isEmpty else {
     exit(0)
 }
 
+// OCR processing loop
 for imageURL in pngFiles {
     guard let imageSource = CGImageSourceCreateWithURL(imageURL as CFURL, nil),
           let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
