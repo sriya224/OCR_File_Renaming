@@ -41,6 +41,12 @@ The following files are required to execute our image renaming pipeline:
    
 
 ## Usage
+1. Navigate to your desired folder of .mrxs images
+2. Left click on folder and select Quick Actions: Rename
+3. Expected output should be included into a timestamped sub-folder containing versions of the following files:
+   > Vision_OCR.txt 
+   > Log.txt
+   > file_renaming_excel.xlsx
 
 ## Requirements
 
