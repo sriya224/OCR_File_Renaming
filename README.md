@@ -1,9 +1,10 @@
-# Image Renaming Quick Action
-This project aims to automate the process of naming computerized slide image files in a histopathology lab setting, leveraging macOS Quick Actions and Apple Vision OCR to provide an accurate and user-friendly renaming workflow.
+## Image Renaming Quick Action
+A project created by two Bioinformatics undergraduate students at UCSD in Spring 2025 to support histopathology workflows at Glintlab.
 
 ## Table of Contents
 - Overview
-- Installation/Requirements
+- Requirements
+- Installation
 - Usage
 - Workflow Diagram
 - Pipeline Components
@@ -13,29 +14,64 @@ This project aims to automate the process of naming computerized slide image fil
 - Future Directions
 
 ## Overview
+This project aims to automate the process of naming computerized slide image files in a histopathology lab setting, leveraging macOS Quick Actions and Apple Vision OCR to provide an accurate and user-friendly renaming workflow.
 
-## Installation/Requirements
-1. [Optional] Replicate team's environment
-   Follow the instructions below to ensure necessary packages are installed.
-   > Download miniconda<br>
-   Create a new conda environment<br>
-   'conda create -n ocrenv python=3.11 notebook ipykernel'<br>
-   Pip install the following packages<br>
-   'pip install openslide-python openslide-bin pandas openpyxl'<br>
-   
-2. Download files from this repository to an accessible location
-   
-3. Build the binary executable for *VisionOCRDemo/*
-   > Navigate to the parent directory of *VisionOCRDemo/*<br>
-   Run the following command<br>
-   swift build -c release<br>
-   If issues arise, the following commands can be helpful to restart<br>
-   swift package clean<br>
-   rm -rf .build<br>
+## Requirements
+- **System:** macOS 10.4 (Tiger) or later (Automator Quick Actions are stable from this version onward)
+- **Developer tools:** Xcode (latest version recommended), Swift 5.3+ (tested with 6.0.3)
+- **Python Dependencies:** openslide-python, openslide-bin, pandas, openpyxl
 
-4. Customize file paths in *quick_action_driver.sh*
-   [insert screenshot of shell script block]
-   Replace the paths for EXTRACT_IMAGES, RUN_OCR,
+### Testing Environment
+To replicate the team's conda environment used for testing, download miniconda and run these commands: <br>
+`conda create -n ocrenv python=3.11 notebook ipykernel` <br>
+`pip install openslide-python openslide-bin pandas openpyxl` <br>
+
+## Installation
+Follow the steps below to install and configure the Quick Action on macOS.
+
+### 1. Clone or Download the Repository
+Download all files from this repository and place them in an accessible directory on your local machine.
+
+### 2. Build the Swift Binary
+The Swift executable is located in the `VisionOCRDemo/` directory.
+
+#### Steps:
+1. Open Terminal.
+2. Navigate to the **parent directory** of `VisionOCRDemo/`.
+3. Run the following command to build the project in release mode:
+   ```bash
+   swift build -c release
+4. If you encounter any issues during the build process, try cleaning and rebuilding:
+   ```swift package clean
+   rm -rf .build
+   swift build -c release
+
+The compiled binary will be located at:
+`./.build/release/VisionOCRDemo`
+
+### 3. Create the [] Quick Action in Automator
+1. Open the Automator app and choose Quick Action as document type.
+2. Set the following options at the top: []
+3. Add a Run Shell Script block.
+4. Paste the contents of the provided `quick_action_driver.sh` file into the block.
+
+Note: Quick Actions are saved in ~/Library/Services and can be managed or edited by opening them directly in the Automator app.
+
+### 4. Update Script Path Variables
+
+Inside the `Run Shell Script` block in Automator, update the following variables in `quick_action_driver.sh` to match your local file paths:
+
+| Variable         | Description                                                       | Example Path                                                      |
+|------------------|-------------------------------------------------------------------|--------------------------------------------------------------------|
+| `EXTRACT_IMAGES` | Path to the Python script that extracts images                    | `/Users/yourname/path/to/open_label_images.py`                     |
+| `RUN_OCR`        | Path to the **compiled Swift binary** (`VisionOCRDemo`)           | `/Users/yourname/path/to/.build/release/VisionOCRDemo`            |
+| `RENAME_FILES`   | Path to the Python script for renaming files based on OCR results | `/Users/yourname/path/to/file_renaming_outliers_excel.py`         |
+| `TEMP_PATH`      | Path to a temporary folder used for intermediate file conversion  | `/Users/yourname/tmp_folder`                                      |
+
+### [In progress]
+### 5. Define a new Quick Action in Automator named [].
+### 6. Like before, add a Run Shell Script block and paste the contents of *[]*
+
 
 ## Usage
 1. Navigate to your desired folder of .mrxs images
