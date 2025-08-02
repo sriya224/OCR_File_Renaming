@@ -28,13 +28,13 @@ def rename_from_excel(excel_path, mrxs_folder, log_folder, log_path="rename_log_
                 log_entries.append(f"Skipped: {new} already exists.")
         else:
             log_entries.append(f"File not found: {original}")
-
+    
+    log_entries.append(f"✔ Renaming complete. {renamed_count} file(s) renamed. Log saved to {log_path}")
     with open(os.path.join(log_folder, log_path), "w", encoding="utf-8") as f:
         for entry in log_entries:
             f.write(entry + "\n")
         f.write(f"\nTotal files renamed: {renamed_count}\n")
 
-    print(f"✔ Renaming complete. {renamed_count} file(s) renamed. Log saved to {log_path}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Rename .mrxs files using Excel sheet mapping.")
