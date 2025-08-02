@@ -68,11 +68,27 @@ for imageURL in pngFiles {
 
     var output = "--- \(imageURL.lastPathComponent) ---\n"
 
-    if let observations = request.results as? [VNRecognizedTextObservation] {
-        let lines = observations.compactMap { $0.topCandidates(1).first?.string }
-        output += lines.isEmpty ? "No text found\n\n" : lines.joined(separator: "\n") + "\n\n"
-    } else {
-        output += "No text results found\n\n"
+    // if let observations = request.results as? [VNRecognizedTextObservation] {
+    //     let lines = observations.compactMap { $0.topCandidates(1).first?.string }
+    //     output += lines.isEmpty ? "No text found\n\n" : lines.joined(separator: "\n") + "\n\n"
+    // } else {
+    //     output += "No text results found\n\n"
+    // }
+    if let error = error {
+        output += "OCR Error: \(error)\n\n"
+    } else if let observations = request.results as? [VNRecognizedTextObservation] {
+        let lines = observations.compactMap { observation -> String? in
+            if let top = observation.topCandidates(1).first {
+                return String(format: "[%.2f] %@", top.confidence, top.string)
+            }
+            return nil
+        }
+
+        if lines.isEmpty {
+            output += "No text found\n\n"
+        } else {
+            output += lines.joined(separator: "\n") + "\n\n"
+        }
     }
 
     do {
