@@ -85,6 +85,7 @@ Inside the `Run Shell Script` block in Automator, update the following variables
 
 ## Workflow Diagram
 [workflow diagram to be inserted]
+![Quick Action 1](images/image.png "Quick Action 1")
 
 ## Input Files
 The following files are required to execute our image renaming pipeline:
