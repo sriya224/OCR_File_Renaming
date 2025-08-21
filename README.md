@@ -84,15 +84,17 @@ Inside the `Run Shell Script` block in Automator, update the following variables
    > file_renaming_excel.xlsx
 
 ## Workflow Diagram
-[workflow diagram to be inserted]
+Quick Action 1
 ![Quick Action 1](images/image.png "Quick Action 1")
+Quick Action 2
+![Quick Action 2](images/image2.png "Quick Action 2")
 
 ## Input Files
 The following files are required to execute our image renaming pipeline:
 - *quick_action_driver.sh*: main driver script in Automator which accesses the following scripts to generate an end-to-end workflow
 - *open_label_images.py*: Python script which takes in a folder of mrxs images and extracts label images as pngs into a designated output folder 
 - *VisionOCRDemo/*: Swift package which performs OCR on a folder of png images and reports the text and confidence scores of extracted fields for each image
-- *file_renaming_outliers_excel.py*: Python script which takes a text file of OCR results and a folder of label images and parses it into a human-readable excel sheet with the following columns:
+- *postprocess_with_confidence.py*: Python script which takes a text file of OCR results and a folder of label images and parses it into a human-readable excel sheet with the following columns:
 
 ## Output Files
 - *ocr_results.txt*: a text file containing the text and confidence scores of extracted fields for each image from OCR
