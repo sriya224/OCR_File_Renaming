@@ -85,21 +85,32 @@ Inside the `Run Shell Script` block in Automator, update the following variables
 
 ## Workflow Diagram
 Quick Action 1
-![Quick Action 1](images/image.png "Quick Action 1")
+![Quick Action 1](images/image2.png "Quick Action 1")
+
 Quick Action 2
-![Quick Action 2](images/image2.png "Quick Action 2")
+![Quick Action 2](images/quick_action_2.png "Quick Action 2")
 
 ## Input Files
 The following files are required to execute our image renaming pipeline:
 - *quick_action_driver.sh*: main driver script in Automator which accesses the following scripts to generate an end-to-end workflow
 - *open_label_images.py*: Python script which takes in a folder of mrxs images and extracts label images as pngs into a designated output folder 
 - *VisionOCRDemo/*: Swift package which performs OCR on a folder of png images and reports the text and confidence scores of extracted fields for each image
-- *postprocess_with_confidence.py*: Python script which takes a text file of OCR results and a folder of label images and parses it into a human-readable excel sheet with the following columns:
+- *postprocess_with_confidence.py*: Python script which takes a text file of OCR results and a folder of label images and parses it into a human-readable excel sheet called 
+
 
 ## Output Files
 - *ocr_results.txt*: a text file containing the text and confidence scores of extracted fields for each image from OCR
 - *rename_log.txt*: an output log which tracks the previous and new name of each file renamed in the folder
-- *expanded_ocr_results.xlsx*: an excel spreadsheet of the following format:
+- *file_renaming_excel.xlsx*: an excel spreadsheet of the following format:
+- 
+| Label Image      | Average Confidence Score                | Original File Name      | New File Name           | 
+|------------------|-----------------------------------------|-------------------------|-------------------------|
+| Thumbnail Image  | 1.0                                     | 01.mrxs                 | 24-134_H(20)_OAH25_Lung_Carcinoma_Run3_48min_.mrxs|
+| Thumbnail Image  | **0.1** (low scores are bolded and red) | 02.mrxs                 | 23-123_Diaph_HE.mrxs                 |
+| Thumbnail Image  | 0.5                                     | 03.mrxs                 | 23-123_H(20)_Diaph_HE.mrxs           |
+                                     |
+
+
    
 ## Script Details
 Note: helpful to run scripts individually for debugging purposes
