@@ -80,7 +80,7 @@ def extract_study_id_and_clean(lines):
     filename = "_".join(filename_tokens)
     return study_id, filename
 
-def export_excel_with_images(records, label_folder, output_folder, output_path="file_renaming_ocr.xlsx", threshold=0.693):
+def export_excel_with_images(records, label_folder, output_folder, output_path="file_renaming_excel.xlsx", threshold=0.6):
     from openpyxl import Workbook
     wb = Workbook()
     ws = wb.active
