@@ -68,7 +68,7 @@ Inside the `Run Shell Script` block in Automator, update the following variables
 | `RENAME_FILES`   | Path to the Python script for renaming files based on OCR results | `/Users/yourname/path/to/file_renaming_outliers_excel.py`         |
 | `TEMP_PATH`      | Path to a temporary folder used for intermediate file conversion  | `/Users/yourname/tmp_folder`                                      |
 
-### [In progress]
+
 ### 5. Define a new Quick Action in Automator named [].
 ### 6. Like before, add a Run Shell Script block and paste the contents of *[]*
 
@@ -87,31 +87,39 @@ Inside the `Run Shell Script` block in Automator, update the following variables
 Quick Action 1
 ![Quick Action 1](images/image2.png "Quick Action 1")
 
-Quick Action 2
-![Quick Action 2](images/quick_action_2.png "Quick Action 2")
-
 ## Input Files
 The following files are required to execute our image renaming pipeline:
-- *quick_action_driver.sh*: main driver script in Automator which accesses the following scripts to generate an end-to-end workflow
+- *create_name_quick_action.sh*: main driver script in Automator which accesses the following scripts to generate an end-to-end workflow
 - *open_label_images.py*: Python script which takes in a folder of mrxs images and extracts label images as pngs into a designated output folder 
 - *VisionOCRDemo/*: Swift package which performs OCR on a folder of png images and reports the text and confidence scores of extracted fields for each image
-- *postprocess_with_confidence.py*: Python script which takes a text file of OCR results and a folder of label images and parses it into a human-readable excel sheet called 
+- *postprocess_with_confidence_final.py*: Python script which takes a text file of OCR results and a folder of label images and parses it into a human-readable excel sheet called 
 
-
-## Output Files
+## Output Files: All output files are organized within a timestamped "outputs" subfolder inside of the folder you are running this action from
 - *ocr_results.txt*: a text file containing the text and confidence scores of extracted fields for each image from OCR
 - *rename_log.txt*: an output log which tracks the previous and new name of each file renamed in the folder
 - *file_renaming_excel.xlsx*: an excel spreadsheet of the following format:
-- 
+
 | Label Image      | Average Confidence Score                | Original File Name      | New File Name           | 
 |------------------|-----------------------------------------|-------------------------|-------------------------|
 | Thumbnail Image  | 1.0                                     | 01.mrxs                 | 24-134_H(20)_OAH25_Lung_Carcinoma_Run3_48min_.mrxs|
 | Thumbnail Image  | **0.1** (low scores are bolded and red) | 02.mrxs                 | 23-123_Diaph_HE.mrxs                 |
 | Thumbnail Image  | 0.5                                     | 03.mrxs                 | 23-123_H(20)_Diaph_HE.mrxs           |
-                                     |
 
+Quick Action 2
+![Quick Action 2](images/quick_action_2.png "Quick Action 2")
 
-   
+## Input Files
+The following files are required to execute our image renaming pipeline:
+- *rename_quick_action.sh*: driver script in Automator which accesses the following files & scripts
+- *file.xlsx (selected file)*: The edited excel file that you run this quick action on (make sure it is within the output subfolder!)
+
+   SomePath/MRXS_FOLDER/
+  
+      └── SubFolder (OUTPUT_FOLDER)
+          └── file.xlsx (selected file)
+  
+- *rename_from_excel.py*: Python script which takes in the selected excel file and renames all corresponding .mrxs files one level above the folder which the excel file is in
+                                     
 ## Script Details
 Note: helpful to run scripts individually for debugging purposes
 
@@ -127,4 +135,9 @@ Arguments:
 add other files
 
 ## Future Directions
+
+- Further optimize the post-processing script
+     - Decide whether H*(20) tokens are necessary in the final output
+- Create a glintlab github account so you can clone this repo on the Mac Desktop
+
 
